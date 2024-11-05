@@ -13,7 +13,6 @@
 *.ipch
 *.log
 *.tlog
-*.vcxproj*
 *.opensdf
 *.sdf
 *.user
