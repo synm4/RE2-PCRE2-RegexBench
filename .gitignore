@@ -1,0 +1,44 @@
+
+# Visual Studio 관련 파일들
+.vscode/
+*.code-workspace
+
+# 빌드 관련 파일들
+*.obj
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.lib
+*.suo
+*.idb
+*.ipch
+*.log
+*.tlog
+*.vcxproj*
+*.opensdf
+*.sdf
+*.user
+*.rsuser
+*.sln.docstates
+*.ncb
+*.cache
+*.pch
+*.db
+*.opendb
+*.VC.db
+
+# Visual Studio 구성 파일들
+.vs/
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.unsaved
+
+# Git을 위한 파일들
+*.orig
+
+# 텍스트 파일 제외
+*.txt
+
