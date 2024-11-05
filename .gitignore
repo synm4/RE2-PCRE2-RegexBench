@@ -1,15 +1,13 @@
 
-# Visual Studio °ü·Ã ÆÄÀÏµé
+# Visual Studio ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ïµï¿½
 .vscode/
 *.code-workspace
 
-# ºôµå °ü·Ã ÆÄÀÏµé
+# ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ïµï¿½
 *.obj
 *.exe
-*.dll
 *.pdb
 *.ilk
-*.lib
 *.suo
 *.idb
 *.ipch
@@ -28,7 +26,7 @@
 *.opendb
 *.VC.db
 
-# Visual Studio ±¸¼º ÆÄÀÏµé
+# Visual Studio ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ïµï¿½
 .vs/
 .vscode/
 *.suo
@@ -36,9 +34,9 @@
 *.userosscache
 *.unsaved
 
-# GitÀ» À§ÇÑ ÆÄÀÏµé
+# Gitï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½Ïµï¿½
 *.orig
 
-# ÅØ½ºÆ® ÆÄÀÏ Á¦¿Ü
+# ï¿½Ø½ï¿½Æ® ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½
 *.txt
 
