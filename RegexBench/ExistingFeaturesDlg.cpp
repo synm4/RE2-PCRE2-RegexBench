@@ -464,13 +464,17 @@ void CExistingFeaturesDlg::OnBnClickedButtonSaveresultex()
     outFile << "----------------------------------" << std::endl;
     for (size_t i = 0; i < dataCount; ++i)
     {
-        outFile << "라인 수: " << lineCounts[i] << std::endl;
-        outFile << "RE2 처리 시간: " << re2Durations[i] << " ms" << std::endl;
-        outFile << "PCRE2 처리 시간: " << pcreDurations[i] << " ms" << std::endl;
+        CString ratioStr;
+        ratioStr.Format(_T("라인 수: %d"), lineCounts[i]);
+        outFile << CT2A(ratioStr) << std::endl;
+        ratioStr.Format(_T("RE2 처리 시간: %.2f"), re2Durations[i]);
+        outFile << CT2A(ratioStr) << std::endl;
+        ratioStr.Format(_T("PCRE2 처리 시간: %.2f"), pcreDurations[i]);
+        outFile << CT2A(ratioStr) << std::endl;
 
         // 각 라인 수별 처리 시간 비율 계산
         double ratio = 0.0;
-        CString ratioStr;
+        
 
         if (re2Durations[i] > 0 && pcreDurations[i] > 0)
         {
@@ -534,7 +538,9 @@ void CExistingFeaturesDlg::OnBnClickedButtonSaveresultex()
     // 요약을 파일에 씁니다.
     outFile << std::endl;
     outFile << "==================================" << std::endl;
-    outFile << "라인 수별 처리 시간 비율들의 평균: " << averageRatio << std::endl;
+    CString avgRatioStr;
+    avgRatioStr.Format(_T("라인 수별 처리 시간 비율들의 평균: %.2f"), averageRatio);
+    outFile << CT2A(avgRatioStr) << std::endl;
     outFile << CT2A(summary) << std::endl;
     outFile << "==================================" << std::endl;
 

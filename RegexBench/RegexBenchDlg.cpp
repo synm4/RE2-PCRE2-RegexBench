@@ -8,6 +8,7 @@
 #include "PatternManager.h"
 #include "GenerateDataDlg.h"
 #include "FolderPathManager.h"
+#include "Logger.h"
 #pragma comment(lib, "gdiplus.lib")
 using namespace Gdiplus;
 
@@ -205,7 +206,7 @@ BOOL CRegexBenchDlg::OnInitDialog()
         delete m_pExistingFeaturesDlg;
         m_pExistingFeaturesDlg = nullptr;
     }
-
+    Logger::init("single", std::filesystem::current_path().string());
     // 첫 번째 탭 페이지 표시
     ShowTabPage(0);
 

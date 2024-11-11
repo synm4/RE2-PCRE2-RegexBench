@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "PatternManager.h"
 #include "FolderPathManager.h"
+#include "Logger.h"
 
 #pragma comment(lib, "gdiplus.lib")
 std::mutex logMutex;
@@ -14,33 +15,6 @@ std::mutex logMutex;
 
 IMPLEMENT_DYNAMIC(CSingleFileComparisonDlg, CDialogEx)
 
-void LogMessage(const CString& message)
-{
-    std::lock_guard<std::mutex> lock(logMutex);
-
-    // 로그 파일을 UTF-8로 열기
-    std::ofstream logFile("release_log.txt", std::ios::app);
-    if (logFile.is_open())
-    {
-        // UTF-8 BOM 추가 (첫 번째 열기 시 한 번만 추가)
-        static bool isFirstOpen = true;
-        if (isFirstOpen)
-        {
-            logFile << "\xEF\xBB\xBF"; // UTF-8 BOM
-            isFirstOpen = false;
-        }
-
-        // CString을 UTF-8 std::string으로 변환하여 로그 파일에 기록
-        try {
-            std::string utf8Str = Utils::CStringToUTF8(message);
-            logFile << utf8Str << std::endl;
-        }
-        catch (const std::runtime_error& e) {
-            // 변환 실패 시 오류 메시지 로그
-            logFile << "Error in CStringToUTF8 conversion: " << e.what() << std::endl;
-        }
-    }
-}
 
 CSingleFileComparisonDlg::CSingleFileComparisonDlg(CWnd* pParent /*=nullptr*/)
     : CDialogEx(IDD_SINGLE_FILE_COMPARISON_DLG, pParent)
@@ -341,7 +315,7 @@ void CSingleFileComparisonDlg::StartProcessing()
     }
     m_isProcessing = true;
 
-    LogMessage(_T("StartProcessing: 처리 시작"));
+    Logger::write(spdlog::level::info, "StartProcessing: 처리 시작", __FUNCTION__, __LINE__);
 
     // 그래프 데이터 초기화
     m_re2TimeStamps.clear();
@@ -376,13 +350,12 @@ void CSingleFileComparisonDlg::StartProcessing()
 
     try
     {
-        LogMessage(_T("스레드 생성 시작: ProcessingThreadRE2\n"));
+        Logger::write(spdlog::level::info, "스레드 생성 시작: ProcessingThreadRE2\n", __FUNCTION__, __LINE__);
         m_re2ThreadGuard = std::make_unique<ThreadGuard>(std::thread(&CSingleFileComparisonDlg::ProcessingThreadRE2, this));
-        LogMessage(_T("ProcessingThreadRE2 스레드 생성 완료.\n"));
-
-        LogMessage(_T("스레드 생성 시작: ProcessingThreadPCRE2\n"));
+        Logger::write(spdlog::level::info, "ProcessingThreadRE2 스레드 생성 완료.\n", __FUNCTION__, __LINE__);
+        Logger::write(spdlog::level::info, "스레드 생성 시작: ProcessingThreadPCRE2\n", __FUNCTION__, __LINE__);
         m_pcre2ThreadGuard = std::make_unique<ThreadGuard>(std::thread(&CSingleFileComparisonDlg::ProcessingThreadPCRE2, this));
-        LogMessage(_T("ProcessingThreadPCRE2 스레드 생성 완료.\n"));
+        Logger::write(spdlog::level::info, "ProcessingThreadPCRE2 스레드 생성 완료.\n", __FUNCTION__, __LINE__);
     }
     catch (const std::system_error& e)
     {
@@ -403,7 +376,7 @@ void CSingleFileComparisonDlg::StartProcessing()
     catch (...)
     {
         AfxMessageBox(_T("스레드 생성 중 알 수 없는 예외가 발생했습니다."));
-        LogMessage(_T("스레드 생성 중 알 수 없는 예외 발생.\n"));
+        Logger::write(spdlog::level::info, "스레드 생성 중 알 수 없는 예외 발생.\n", __FUNCTION__, __LINE__);
         m_isProcessing = false;
     }
     TRACE(_T("UpdateChart 함수 완료\n"));
@@ -430,8 +403,7 @@ void CSingleFileComparisonDlg::ProcessingThreadRE2()
             }
             return;
         }
-        LogMessage(_T("ProcessingThreadRE2\n"));
-
+        Logger::write(spdlog::level::info, "ProcessingThreadRE2\n", __FUNCTION__, __LINE__);
         // FolderPathManager를 사용하여 폴더 경로 설정
         std::filesystem::path folderPath;
         if (FolderPathManager::GetInstance().IsGeneratedDataFolderPathSet())
@@ -475,7 +447,8 @@ void CSingleFileComparisonDlg::ProcessingThreadRE2()
         }
 
         // UTF-8 BOM 추가
-        outFile << "\xEF\xBB\xBF";
+        const char bom[] = { 0xEF, 0xBB, 0xBF };
+        outFile.write(bom, sizeof(bom)); // 바이트 단위로 BOM 추가
 
         // 패턴을 미리 컴파일하여 저장
         std::vector<std::unique_ptr<RE2>> regexes;
@@ -517,10 +490,10 @@ void CSingleFileComparisonDlg::ProcessingThreadRE2()
 
             for (size_t i = 0; i < regexes.size(); ++i)
             {
-                if (RE2::GlobalReplace(&processedLine, *regexes[i], replacements[i]))
+                if (int matchCount = RE2::GlobalReplace(&processedLine, *regexes[i], replacements[i]))
                 {
                     WriteLockGuard lock(m_dataLock);
-                    int matchCount = 1; // GlobalReplace의 호출이 성공하면 matchCount를 1 증가시킵니다.
+                     // GlobalReplace의 호출이 성공하면 matchCount를 1 증가시킵니다.
                     m_detectionsPerPatternRE2[i] += matchCount;
                     m_totalDetectionsRE2 += matchCount;
                     m_totalReplacementsRE2 += matchCount;
@@ -594,7 +567,7 @@ void CSingleFileComparisonDlg::ProcessingThreadRE2()
         CString msg;
         msg.Format(_T("RE2 처리 중 예외가 발생했습니다: %S"), ex.what());
         AfxMessageBox(msg);
-        LogMessage(msg);
+        Logger::write(spdlog::level::info, Utils::CStringToUTF8(msg), __FUNCTION__, __LINE__);
         WriteLockGuard lock(m_dataLock);
 
         m_isProcessingRE2 = false;
@@ -608,7 +581,7 @@ void CSingleFileComparisonDlg::ProcessingThreadRE2()
         CString msg;
         AfxMessageBox(_T("RE2 처리 중 알 수 없는 예외가 발생했습니다."));
         AfxMessageBox(msg);
-        LogMessage(msg);
+        Logger::write(spdlog::level::info, Utils::CStringToUTF8(msg), __FUNCTION__, __LINE__);
         WriteLockGuard lock(m_dataLock);
         m_isProcessingRE2 = false;
         if (!m_isProcessingPCRE2)
@@ -638,8 +611,7 @@ void CSingleFileComparisonDlg::ProcessingThreadPCRE2()
             }
             return;
         }
-        LogMessage(_T("ProcessingThreadRE2\n"));
-
+        Logger::write(spdlog::level::info, "ProcessingThreadRE2\n", __FUNCTION__, __LINE__);
         // FolderPathManager를 사용하여 폴더 경로 설정
         std::filesystem::path folderPath;
         if (FolderPathManager::GetInstance().IsGeneratedDataFolderPathSet())
@@ -844,7 +816,7 @@ void CSingleFileComparisonDlg::UpdateChart()
             {
                 CString message;
                 message.Format(_T("m_re2PerformanceData 데이터가 없을 경우 0으로 표시\n경과 시간: %.2f 초", m_globalTime));
-                LogMessage(message);
+                Logger::write(spdlog::level::info, Utils::CStringToUTF8(message), __FUNCTION__, __LINE__);
                 re2DataStr = _T("0"); // 데이터가 없을 경우 0으로 표시
             }
         }
@@ -852,7 +824,7 @@ void CSingleFileComparisonDlg::UpdateChart()
         {
             CString message;
             message.Format(_T("m_isProcessingRE2 처리가 완료된 경우 0으로 표시\n경과 시간: %.2f 초", m_globalTime));
-            LogMessage(message);
+            Logger::write(spdlog::level::info, Utils::CStringToUTF8(message), __FUNCTION__, __LINE__);
             re2DataStr = _T("0"); // 처리가 완료된 경우 0으로 표시
         }
     }
@@ -870,7 +842,7 @@ void CSingleFileComparisonDlg::UpdateChart()
             {
                 CString message;
                 message.Format(_T("m_pcre2PerformanceData 처리가 완료된 경우 0으로 표시\n경과 시간: %.2f 초"), m_globalTime);
-                LogMessage(message);
+                Logger::write(spdlog::level::info, Utils::CStringToUTF8(message), __FUNCTION__, __LINE__);
                 pcre2DataStr = _T("0"); // 데이터가 없을 경우 0으로 표시
             }
         }
@@ -878,7 +850,7 @@ void CSingleFileComparisonDlg::UpdateChart()
         {
             CString message;
             message.Format(_T("m_isProcessingPCRE2 처리가 완료된 경우 0으로 표시\n경과 시간: %.2f 초", m_globalTime));
-            LogMessage(message);
+            Logger::write(spdlog::level::info, Utils::CStringToUTF8(message), __FUNCTION__, __LINE__);
             pcre2DataStr = _T("0"); // 처리가 완료된 경우 0으로 표시
         }
     }
@@ -1051,97 +1023,94 @@ void CSingleFileComparisonDlg::OnBnClickedButtonSaveResults()
         }
     }
 
-    // 파일 열기
-    CStringA savePathA(savePath);
-    std::ofstream outFile(savePathA.GetString(), std::ios::out);
-
+    // 파일 열기 (std::wofstream 사용)
+    std::wofstream outFile(savePath);
     if (!outFile.is_open())
     {
         AfxMessageBox(_T("파일을 열 수 없습니다."));
         return;
     }
 
+    // 로케일 설정 (유니코드 문자가 올바르게 표시되도록)
+    outFile.imbue(std::locale("kor")); // 또는 std::locale("ko_KR.UTF-8") 등 시스템에 맞게 설정
+
     {
         ReadLockGuard lock(m_dataLock);
 
         // 1. 성능 비교 섹션
-        outFile << "=== 성능 비교 ===\n";
-        outFile << "RE2 총 처리 시간: " << m_totalTimeRE2 << " 초\n";
-        outFile << "PCRE2 총 처리 시간: " << m_totalTimePCRE2 << " 초\n";
+        outFile << L"=== 성능 비교 ===\n";
+        outFile << L"RE2 총 처리 시간: " << m_totalTimeRE2 << L" 초\n";
+        outFile << L"PCRE2 총 처리 시간: " << m_totalTimePCRE2 << L" 초\n";
 
         if (m_totalTimePCRE2 > 0)
         {
             double ratio = m_totalTimePCRE2 / m_totalTimeRE2;
-            outFile << "RE2는 PCRE2 대비 약 " << ratio << " 배 빠릅니다.\n";
+            outFile << L"RE2는 PCRE2 대비 약 " << ratio << L" 배 빠릅니다.\n";
         }
         else
         {
-            outFile << "PCRE2 처리 시간이 0초여서 비교할 수 없습니다.\n";
+            outFile << L"PCRE2 처리 시간이 0초여서 비교할 수 없습니다.\n";
         }
 
-        outFile << "\n";
+        outFile << L"\n";
 
         // 2. 검출 통계 섹션
-        outFile << "=== 검출 통계 ===\n";
+        outFile << L"=== 검출 통계 ===\n";
 
         // RE2 검출 통계
-        outFile << "RE2 검출 통계:\n";
-        outFile << "총 검출 수: " << m_totalDetectionsRE2 << " 회\n";
-        outFile << "패턴 별 검출 수:\n";
+        outFile << L"RE2 검출 통계:\n";
+        outFile << L"총 검출 수: " << m_totalDetectionsRE2 << L" 회\n";
+        outFile << L"패턴 별 검출 수:\n";
         const auto& re2Patterns = PatternManager::GetInstance().GetPatterns();
         for (size_t i = 0; i < re2Patterns.size(); ++i)
         {
-            CStringA patternStrA(re2Patterns[i].pattern);
-            outFile << "  패턴 " << i + 1 << " (" << patternStrA.GetString() << "): " << m_detectionsPerPatternRE2[i] << " 회\n";
+            outFile << L"  패턴 " << i + 1 << L" (" << re2Patterns[i].pattern.GetString() << L"): " << m_detectionsPerPatternRE2[i] << L" 회\n";
         }
 
-        outFile << "\n";
+        outFile << L"\n";
 
         // PCRE2 검출 통계
-        outFile << "PCRE2 검출 통계:\n";
-        outFile << "총 검출 수: " << m_totalDetectionsPCRE2 << " 회\n";
-        outFile << "패턴 별 검출 수:\n";
+        outFile << L"PCRE2 검출 통계:\n";
+        outFile << L"총 검출 수: " << m_totalDetectionsPCRE2 << L" 회\n";
+        outFile << L"패턴 별 검출 수:\n";
         const auto& pcre2Patterns = PatternManager::GetInstance().GetPatterns();
         for (size_t i = 0; i < pcre2Patterns.size(); ++i)
         {
-            CStringA patternStrA(pcre2Patterns[i].pattern);
-            outFile << "  패턴 " << i + 1 << " (" << patternStrA.GetString() << "): " << m_detectionsPerPatternPCRE2[i] << " 회\n";
+            outFile << L"  패턴 " << i + 1 << L" (" << pcre2Patterns[i].pattern.GetString() << L"): " << m_detectionsPerPatternPCRE2[i] << L" 회\n";
         }
 
-        outFile << "\n";
+        outFile << L"\n";
 
         // 3. 치환 통계 섹션
-        outFile << "=== 치환 통계 ===\n";
+        outFile << L"=== 치환 통계 ===\n";
 
         // RE2 치환 통계
-        outFile << "RE2 치환 통계:\n";
-        outFile << "총 치환 수: " << m_totalReplacementsRE2 << " 회\n";
-        outFile << "패턴 별 치환 수:\n";
+        outFile << L"RE2 치환 통계:\n";
+        outFile << L"총 치환 수: " << m_totalReplacementsRE2 << L" 회\n";
+        outFile << L"패턴 별 치환 수:\n";
         for (size_t i = 0; i < re2Patterns.size(); ++i)
         {
-            CStringA patternStrA(re2Patterns[i].pattern);
-            outFile << "  패턴 " << i + 1 << " (" << patternStrA.GetString() << "): " << m_detectionsPerPatternRE2[i] << " 회\n";
+            outFile << L"  패턴 " << i + 1 << L" (" << re2Patterns[i].pattern.GetString() << L"): " << m_detectionsPerPatternRE2[i] << L" 회\n";
         }
 
-        outFile << "\n";
+        outFile << L"\n";
 
         // PCRE2 치환 통계
-        outFile << "PCRE2 치환 통계:\n";
-        outFile << "총 치환 수: " << m_totalReplacementsPCRE2 << " 회\n";
-        outFile << "패턴 별 치환 수:\n";
+        outFile << L"PCRE2 치환 통계:\n";
+        outFile << L"총 치환 수: " << m_totalReplacementsPCRE2 << L" 회\n";
+        outFile << L"패턴 별 치환 수:\n";
         for (size_t i = 0; i < pcre2Patterns.size(); ++i)
         {
-            CStringA patternStrA(pcre2Patterns[i].pattern);
-            outFile << "  패턴 " << i + 1 << " (" << patternStrA.GetString() << "): " << m_detectionsPerPatternPCRE2[i] << " 회\n";
+            outFile << L"  패턴 " << i + 1 << L" (" << pcre2Patterns[i].pattern.GetString() << L"): " << m_detectionsPerPatternPCRE2[i] << L" 회\n";
         }
 
-        outFile << "\n\n";
+        outFile << L"\n\n";
 
         for (size_t i = 0; i < re2Patterns.size(); i++)
         {
             if (m_detectionsPerPatternRE2[i] != m_detectionsPerPatternPCRE2[i])
             {
-                outFile << "패턴 " << i << "번째의 치환수가 다릅니다.\n";
+                outFile << L"패턴 " << i + 1 << L"의 치환수가 다릅니다.\n";
             }
         }
     }
@@ -1149,6 +1118,7 @@ void CSingleFileComparisonDlg::OnBnClickedButtonSaveResults()
     outFile.close();
     AfxMessageBox(_T("결과가 성공적으로 저장되었습니다."));
 }
+
 
 
 void CSingleFileComparisonDlg::OnTimer(UINT_PTR nIDEvent)

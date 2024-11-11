@@ -774,7 +774,10 @@ void CMultithreadingComparisonDlg::OnBnClickedButtonResultMt()
     }
 
     // 파일에 결과 작성
-    outFile << "작업이 완료되었습니다.\n\n각 스레드 수별 성능 비교:\n\n";
+    CString temp;
+    temp.Format(_T("작업이 완료되었습니다.\n\n각 스레드 수별 성능 비교:\n\n"));
+    outFile << CT2A(temp) << std::endl;
+
 
     double singleThreadRe2Time = re2_times[0];
     double singleThreadPcre2Time = pcre2_times[0];

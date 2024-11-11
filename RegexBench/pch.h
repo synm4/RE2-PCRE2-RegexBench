@@ -35,7 +35,7 @@
 #include <sstream>
 #include <filesystem>
 #include <numeric>
-
+#include <iomanip>
 // 공용 헤더 파일
 #include "Pattern.h"
 
